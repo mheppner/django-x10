@@ -1,0 +1,14 @@
+*.pyc
+__pycache__
+
+.env
+
+env/
+venv/
+e/
+
+data/cache/*
+data/logs/*
+data/media/*
+data/run/*
+data/static/*

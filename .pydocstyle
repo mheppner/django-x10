@@ -1,0 +1,4 @@
+[pydocstyle]
+
+# ignore tests
+match = (?!test_)(?!\d{4}_).*\.py

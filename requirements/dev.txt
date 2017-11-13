@@ -1,0 +1,5 @@
+django-debug-toolbar==1.8
+flake8==3.5.0
+flake8-import-order==0.15
+ipython==6.2.1
+pydocstyle==2.1.1

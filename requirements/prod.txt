@@ -1,0 +1,4 @@
+asgi-ipc==1.4.2
+circus==0.14.0
+psycopg2==2.7.3.2
+pylibmc==1.5.2
