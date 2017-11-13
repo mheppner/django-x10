@@ -16,4 +16,4 @@ statistics = True
 import-order-style = google
 application-import-names =
     core,
-    project
+    x10

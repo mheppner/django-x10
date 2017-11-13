@@ -1,5 +1,7 @@
+"""App-level config for Celery."""
 from __future__ import absolute_import
 import os
+
 from celery import Celery
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'x10.settings')

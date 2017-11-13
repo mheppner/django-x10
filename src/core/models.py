@@ -1,25 +1,31 @@
-from django.db import models
+"""Core models."""
 from django.conf import settings
+from django.core.cache import cache
+from django.db import models
 from django.db.models.signals import post_init, post_save
 from django.dispatch import receiver
-from django.core.cache import cache
 from rest_framework.authtoken.models import Token
 
-from x10.lock import cache_lock
 from x10.interface import send_command
+from x10.lock import cache_lock
 
 
 class InvalidSignalError(Exception):
+    """Exception when a command cannot be sent to a unit."""
+
     pass
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
+    """Automatically create auth tokens for users."""
     if created:
         Token.objects.create(user=instance)
 
 
 class Unit(models.Model):
+    """Model to represent a receiver in an X10 home."""
+
     HOUSE_CHOICES = (
         ('A', 'A'),
         ('B', 'B'),
@@ -59,6 +65,8 @@ class Unit(models.Model):
     )
 
     class Meta:
+        """Model options."""
+
         ordering = ('order',)
         permissions = (
             ('view_unit', 'Can view unit'),
@@ -67,35 +75,43 @@ class Unit(models.Model):
     _previous_state = None
 
     name = models.CharField(
-        max_length=128)
+        max_length=128,
+        help_text='Display name of the unit.')
     slug = models.SlugField(
-        unique=True)
+        unique=True,
+        help_text='Unique name of the unit.')
     number = models.PositiveSmallIntegerField(
-        choices=NUMBER_CHOICES)
+        choices=NUMBER_CHOICES,
+        help_text='X10 unit number.')
     house = models.CharField(
         max_length=1,
         choices=HOUSE_CHOICES,
-        default='M')
+        default='M',
+        help_text='X10 house code.')
     dimmable = models.BooleanField(
-        default=False)
+        default=False,
+        help_text='Whether or not the unit can be dimmed.')
     order = models.PositiveSmallIntegerField(
         default=0,
         editable=False,
         db_index=True)
     state = models.BooleanField(
-        default=False)
+        default=False,
+        help_text='If the unit is on or off.')
     auto_managed = models.BooleanField(
-        default=True
-    )
+        default=True,
+        help_text='If this unit can be controlled by other tasks.')
 
     def __str__(self):
+        """Use the display name when converting to string."""
         return self.name
 
-    def send_signal(self, command=None, multiplier=1, attempts=10, sleep_time=0.5):
-        """Sends a signal to the unit.
+    def send_signal(self, command: str=None, multiplier: int=1, attempts: int=10,
+                    sleep_time: float=0.5):
+        """Send a signal to the unit.
 
-        This uses a lock to prevent multiple messages from being sent at once.
-        A command can be specified, but will default to self.state.
+        This uses a lock to prevent multiple messages from being sent at once. A command can be
+        specified, but will default to self.state.
 
         :param command: the command to send to the unit
         :param multiplier: the number of times to send the command
@@ -118,20 +134,18 @@ class Unit(models.Model):
 
         with cache_lock('x10_interface', attempts, sleep_time):
             for i in range(0, multiplier):
-                status = status and send_command(
-                    settings.X10_SERIAL,
-                    self.house,
-                    self.number,
-                    command)
+                status = status and send_command(settings.X10_SERIAL, self.house, self.number,
+                                                 command)
         return status
 
     @staticmethod
     def post_init(sender, instance, **kwargs):
+        """Save the current state after init of the object."""
         instance._previous_state = instance.state
 
     @staticmethod
     def post_save(sender, instance, **kwargs):
-        # check if the state is different and send the signal
+        """Compare the last known state of the object and send a task if needed."""
         if instance._previous_state != instance.state:
             instance.send_signal()
 
@@ -141,13 +155,48 @@ post_init.connect(Unit.post_init, sender=Unit)
 
 
 class Scene(models.Model):
+    """Represent groups of multiple units."""
 
     class Meta:
+        """Model options."""
+
         ordering = ('name',)
 
-    name = models.CharField(max_length=128)
-    slug = models.SlugField(unique=True)
+    name = models.CharField(
+        max_length=128,
+        help_text='Display name of the scene.')
+    slug = models.SlugField(
+        unique=True,
+        help_text='Unique name of the scene.')
     units = models.ManyToManyField(Unit)
 
     def __str__(self):
+        """Use the display name when converting to string."""
         return self.name
+
+
+class RealPerson(object):
+    """Represent a physical person being in the home."""
+
+    KEY = 'body_in_home'
+
+    @staticmethod
+    def _set_status(status: bool):
+        """Set the status of the person."""
+        cache.set(RealPerson.KEY, status, None)
+        return status
+
+    @staticmethod
+    def arrive():
+        """Set the person being inside the home."""
+        return RealPerson._set_status(True)
+
+    @staticmethod
+    def leave():
+        """Set the person being outside the home."""
+        return RealPerson._set_status(False)
+
+    @staticmethod
+    def is_home():
+        """Check if the person is within the home or not."""
+        return cache.get(RealPerson.KEY, False)
