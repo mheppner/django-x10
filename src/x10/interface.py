@@ -1,126 +1,103 @@
-#!/usr/bin/env python
+"""X10 interface for sending commands through PySerial.
+
+Modified for PEP8 and Python 3 compatibility. Original text:
+    X10 Firecracker CM17A Interface.
+
+    -----------------------------------------------------------
+    Copyright (c) 2010-2013 Collin J. Delker
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+
+    1. Redistributions of source code must retain the above copyright notice, this
+       list of conditions and the following disclaimer.
+    2. Redistributions in binary form must reproduce the above copyright notice,
+       this list of conditions and the following disclaimer in the documentation
+       and/or other materials provided with the distribution.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.#
+    -----------------------------------------------------------
+
+    NOTES:
+      This software requires the pySerial python module:
+      http://pyserial.sourceforge.net/
+
+      Commands can be sent from the command line or from
+      python scripts by calling send_command().
+
+      X10 Firecracker CM17A protocol specificaiton:
+      ftp://ftp.x10.com/pub/manuals/cm17a_protocol.txt
+
 """
-X10 Firecracker CM17A Interface
-"""
-
-#-----------------------------------------------------------
-# Copyright (c) 2010-2013 Collin J. Delker
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.#
-#-----------------------------------------------------------
-#
-# NOTES:
-#   This software requires the pySerial python module:
-#   http://pyserial.sourceforge.net/
-#
-#   Commands can be sent from the command line or from
-#   python scripts by calling send_command().
-#
-#   X10 Firecracker CM17A protocol specificaiton:
-#   ftp://ftp.x10.com/pub/manuals/cm17a_protocol.txt
-#
-#-----------------------------------------------------------
-
-# Check for serial port or RPi-GPIO support
-serial_installed = False
-try:
-    import serial
-    serial_installed = True
-except:
-    pass
-
-try:
-    import RPi.GPIO as GPIO
-    serial_installed = True
-except:
-    pass
-
 import time
-import sys
 
-if not serial_installed:
-    raise ValueError('No python serial module installed.')
+import serial
 
-#----------------------------------------------------------
-# Constants
-#----------------------------------------------------------
-__version__ = '0.4'
 
 # Firecracker spec requires at least 0.5ms between bits
-DELAY_BIT = 0.001 # Seconds between bits
-DELAY_INIT = 0.15  # Powerup delay    DEFAULT WAS 0.5
-DELAY_FIN = 0.5     # Seconds to wait before disabling after transmit   DEFAULT WAS 1.0
+DELAY_BIT = 0.001  # Seconds between bits
+DELAY_INIT = 0.15  # Powerup delay (default of 0.5)
+DELAY_FIN = 0.5    # Seconds to wait before disabling after transmit (default of 1.0)
 
 # House and unit code table
 HOUSE_LIST = [
-   0x6000, # a
-   0x7000, # b
-   0x4000, # c
-   0x5000, # d
-   0x8000, # e
-   0x9000, # f
-   0xA000, # g
-   0xB000, # h
-   0xE000, # i
-   0xF000, # j
-   0xC000, # k
-   0xD000, # l
-   0x0000, # m
-   0x1000, # n
-   0x2000, # o
-   0x3000  # p
-   ]
+    0x6000,  # a
+    0x7000,  # b
+    0x4000,  # c
+    0x5000,  # d
+    0x8000,  # e
+    0x9000,  # f
+    0xA000,  # g
+    0xB000,  # h
+    0xE000,  # i
+    0xF000,  # j
+    0xC000,  # k
+    0xD000,  # l
+    0x0000,  # m
+    0x1000,  # n
+    0x2000,  # o
+    0x3000   # p
+]
 
 UNIT_LIST = [
-  0x0000, # 1
-  0x0010, # 2
-  0x0008, # 3
-  0x0018, # 4
-  0x0040, # 5
-  0x0050, # 6
-  0x0048, # 7
-  0x0058, # 8
-  0x0400, # 9
-  0x0410, # 10
-  0x0408, # 11
-  0x0400, # 12
-  0x0440, # 13
-  0x0450, # 14
-  0x0448, # 15
-  0x0458  # 16
-  ]
+    0x0000,  # 1
+    0x0010,  # 2
+    0x0008,  # 3
+    0x0018,  # 4
+    0x0040,  # 5
+    0x0050,  # 6
+    0x0048,  # 7
+    0x0058,  # 8
+    0x0400,  # 9
+    0x0410,  # 10
+    0x0408,  # 11
+    0x0400,  # 12
+    0x0440,  # 13
+    0x0450,  # 14
+    0x0448,  # 15
+    0x0458   # 16
+]
 MAX_UNIT = 16
 
 # Command Code Masks
-CMD_ON        = 0x0000
-CMD_OFF       = 0x0020
-CMD_BRT       = 0x0088
-CMD_DIM       = 0x0098
-CMD_ALL_ON    = 0x0091
-CMD_ALL_OFF   = 0x0080
-CMD_LAMPS_ON  = 0x0094
+CMD_ON = 0x0000
+CMD_OFF = 0x0020
+CMD_BRT = 0x0088
+CMD_DIM = 0x0098
+CMD_ALL_ON = 0x0091
+CMD_ALL_OFF = 0x0080
+CMD_LAMPS_ON = 0x0094
 CMD_LAMPS_OFF = 0x0084
-
-
 
 # Data header and footer
 DATA_HDR = 0xD5AA
@@ -130,48 +107,27 @@ DATA_FTR = 0xAD
 DTR_PIN = 24
 RTS_PIN = 25
 
-#----------------------------------------------------------
-# Raspberry Pi GPIO class
-#----------------------------------------------------------
-class RPiGPIO():
-    """ Class to emulate serial port using Raspberry Pi GPIO. Only DTR and RTS pins are used.
-        DTR = pin 4 of DB9 serial connector
-        RTS = pin 7 of DB9 serial connector
-        GND = pin 5 of DB9 serial connector.
-        Must use level-shifter to convert RPi's 3.3V output to 5V.
-    """
-    def __init__( self ):
-        GPIO.setmode( GPIO.BCM )
-        GPIO.setup( DTR_PIN, GPIO.OUT )
-        GPIO.setup( RTS_PIN, GPIO.OUT )
 
-    def setDTR( self, val ):
-        GPIO.output( DTR_PIN, val )
+class FirecrackerException(Exception):
+    """Represents any exception with calling the firecracker."""
 
-    def setRTS( self, val ):
-        GPIO.output( RTS_PIN, val )
-
-    def close( self ):
-        GPIO.cleanup()
+    pass
 
 
-#----------------------------------------------------------
-# Functions
-#----------------------------------------------------------
 def set_standby(s):
-    """ Put Firecracker in standby """
+    """Put Firecracker in standby."""
     s.setDTR(True)
     s.setRTS(True)
 
 
 def set_off(s):
-    """ Turn firecracker 'off' """
+    """Turn firecracker 'off'."""
     s.setDTR(False)
     s.setRTS(False)
 
 
 def send_data(s, data, bytes):
-    """ Send data to firecracker """
+    """Send data to firecracker."""
     mask = 1 << (bytes - 1)
 
     for i in range(bytes):
@@ -183,38 +139,35 @@ def send_data(s, data, bytes):
 
         time.sleep(DELAY_BIT)
         set_standby(s)
-        time.sleep(DELAY_BIT)      # Then stay in standby at least 0.5ms before next bit
-        data = data << 1           # Move to next bit in sequence
+        # Then stay in standby at least 0.5ms before next bit
+        time.sleep(DELAY_BIT)
+        # Move to next bit in sequence
+        data = data << 1
 
 
 def build_command(house, unit, action):
-    """ Generate the command word """
+    """Generate the command word."""
     cmd = 0x00000000
     house_int = ord(house.upper()) - ord('A')
-    secondary_code = False
 
     # Add in the house code
     if house_int >= 0 and house_int <= ord('P') - ord('A'):
-        cmd = cmd | HOUSE_LIST[ house_int ]
+        cmd = cmd | HOUSE_LIST[house_int]
     else:
-        print("Invalid house code ", house, house_int)
-        return
+        raise FirecrackerException(f'Invalid house code: {house} {house_int}')
 
     # Add in the unit code. Ignore if bright or dim command,
     # which just applies to last unit.
     if str(unit).upper() == 'ALL' or str(unit).upper() == 'LAMPS':
-        secondary_code = True
         action = unit + '_' + action
-
     else:
         unit = int(unit)
 
         if unit > 0 and unit < MAX_UNIT:
             if action.upper() != 'BRT' and action.upper() != 'DIM':
-                cmd = cmd | UNIT_LIST[ unit - 1 ]
+                cmd = cmd | UNIT_LIST[unit - 1]
         else:
-            print("Invalid Unit Code", unit)
-            return
+            raise FirecrackerException(f'Invalid unit code: {unit}')
 
     # Add the action code
     if action.upper() == 'ON':
@@ -234,71 +187,38 @@ def build_command(house, unit, action):
     elif action.upper() == 'LAMPS_OFF':
         cmd = cmd | CMD_LAMPS_OFF
     else:
-        print("Invalid Action Code", action)
-        return
+        raise FirecrackerException(f'Invalid action code: {action}')
 
     return cmd
 
 
-def send_command( portname, house, unit, action ):
-    """ Send Command to Firecracker
+def send_command(portname, house, unit, action):
+    """Send Command to Firecracker.
 
-    portname: Serial port to send to
-    house:    house code, character 'a' to 'p'
-    unit:     unit code, integer 1 to 16
-    action:   string 'ON', 'OFF', 'BRT' or 'DIM'
+    :param portname: Serial port to send to
+    :param house: house code, character 'a' to 'p'
+    :param unit: unit code, integer 1 to 16
+    :param action: string 'ON', 'OFF', 'BRT' or 'DIM'
     """
-
-    cmd = build_command( house, unit, action )
-    if cmd != None:
+    cmd = build_command(house, unit, action)
+    if cmd is not None:
         try:
-            if portname == 'pi':
-                s = RPiGPIO()
-            else:
-                s = serial.Serial(portname)
+            s = serial.Serial(portname)
         except serial.SerialException:
-            print('ERROR opening serial port', portname)
-            return False
+            raise FirecrackerException(f'Error opening serial port: {portname}')
 
-        set_standby(s)               # Initialize the firecracker
-        time.sleep( DELAY_INIT )     # Make sure it powers up
-        send_data( s, DATA_HDR, 16 ) # Send data header
-        send_data( s, cmd, 16 )      # Send data
-        send_data( s, DATA_FTR, 8 )  # Send footer
-        time.sleep( DELAY_FIN )      # Wait for firecracker to finish transmitting
-        set_off(s)                   # Shut off the firecracker
+        # Initialize the firecracker
+        set_standby(s)
+        # Make sure it powers up
+        time.sleep(DELAY_INIT)
+        # Send data header
+        send_data(s, DATA_HDR, 16)
+        # Send data
+        send_data(s, cmd, 16)
+        # Send footer
+        send_data(s, DATA_FTR, 8)
+        # Wait for firecracker to finish transmitting
+        time.sleep(DELAY_FIN)
+        # Shut off the firecracker
+        set_off(s)
         s.close()
-        return True
-
-
-#----------------------------------------------------------
-# Main Program Entry from Command Line
-#----------------------------------------------------------
-if __name__ == "__main__":
-    if len(sys.argv) < 4:
-        print("USAGE:  python firecracker.py house unit action [port]")
-        print("   house  = [a,p]")
-        print("   unit   = [0,16,ALL,LAMPS]")
-        print("   action = (ON, OFF, BRT, DIM)")
-        print("   port   = serial port (e.g. COM1 or /dev/tty.usbserial)")
-        quit()
-
-    house = sys.argv[1]
-    unit = sys.argv[2]
-    action = sys.argv[3]
-
-    try:
-        portname = sys.argv[4]
-    except:
-        #-------------------------------------------------------
-        # REPLACE portname with the default serial port your
-        # firecracker is connected to. In Windows, this could
-        # be "COM1" etc. On Mac/Unix, this will be
-        # '/dev/tty.something'. With my usb-to-serial adapter,
-        # it shows up as '/dev/tty.usbserial'.
-        #
-        # To use Raspberry pi GPIO, use port = 'pi'.
-        #-------------------------------------------------------
-        portname = '/dev/tty.usbserial'
-
-    send_command( portname, house, unit, action )
