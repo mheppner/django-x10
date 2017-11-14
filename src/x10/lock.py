@@ -1,7 +1,7 @@
 """Locking mechanisms using a central cache for running critical sections of code."""
-import time
-import logging
 import contextlib
+import logging
+import time
 
 from django.core.cache import cache as django_cache
 
