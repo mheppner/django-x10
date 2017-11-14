@@ -6,7 +6,7 @@ from django.db.models.signals import post_init, post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
-from x10.interface import send_command
+from x10.interface import HOUSE_LABELS, send_command, UNIT_LABELS
 from x10.lock import cache_lock
 
 
@@ -26,43 +26,8 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
 class Unit(models.Model):
     """Model to represent a receiver in an X10 home."""
 
-    HOUSE_CHOICES = (
-        ('A', 'A'),
-        ('B', 'B'),
-        ('C', 'C'),
-        ('D', 'D'),
-        ('E', 'E'),
-        ('F', 'F'),
-        ('G', 'G'),
-        ('H', 'H'),
-        ('I', 'I'),
-        ('J', 'J'),
-        ('K', 'K'),
-        ('L', 'L'),
-        ('M', 'M'),
-        ('N', 'N'),
-        ('O', 'O'),
-        ('P', 'P'),
-    )
-
-    NUMBER_CHOICES = (
-        (1, '1'),
-        (2, '2'),
-        (3, '3'),
-        (4, '4'),
-        (5, '5'),
-        (6, '6'),
-        (7, '7'),
-        (8, '8'),
-        (9, '9'),
-        (10, '10'),
-        (11, '11'),
-        (12, '12'),
-        (13, '13'),
-        (14, '14'),
-        (15, '15'),
-        (16, '16'),
-    )
+    HOUSE_CHOICES = [(h.upper(), h.upper()) for h in HOUSE_LABELS]
+    NUMBER_CHOICES = [(n, str(n)) for n in UNIT_LABELS]
 
     class Meta:
         """Model options."""

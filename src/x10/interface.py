@@ -50,43 +50,47 @@ DELAY_INIT = 0.15  # Powerup delay (default of 0.5)
 DELAY_FIN = 0.5    # Seconds to wait before disabling after transmit (default of 1.0)
 
 # House and unit code table
-HOUSE_LIST = [
-    0x6000,  # a
-    0x7000,  # b
-    0x4000,  # c
-    0x5000,  # d
-    0x8000,  # e
-    0x9000,  # f
-    0xA000,  # g
-    0xB000,  # h
-    0xE000,  # i
-    0xF000,  # j
-    0xC000,  # k
-    0xD000,  # l
-    0x0000,  # m
-    0x1000,  # n
-    0x2000,  # o
-    0x3000   # p
-]
+HOUSES = (
+    (0x6000, 'a'),
+    (0x7000, 'b'),
+    (0x4000, 'c'),
+    (0x5000, 'd'),
+    (0x8000, 'e'),
+    (0x9000, 'f'),
+    (0xA000, 'g'),
+    (0xB000, 'h'),
+    (0xE000, 'i'),
+    (0xF000, 'j'),
+    (0xC000, 'k'),
+    (0xD000, 'l'),
+    (0x0000, 'm'),
+    (0x1000, 'n'),
+    (0x2000, 'o'),
+    (0x3000, 'p'),
+)
+HOUSE_LIST = [house[0] for house in HOUSES]
+HOUSE_LABELS = [house[1] for house in HOUSES]
 
-UNIT_LIST = [
-    0x0000,  # 1
-    0x0010,  # 2
-    0x0008,  # 3
-    0x0018,  # 4
-    0x0040,  # 5
-    0x0050,  # 6
-    0x0048,  # 7
-    0x0058,  # 8
-    0x0400,  # 9
-    0x0410,  # 10
-    0x0408,  # 11
-    0x0400,  # 12
-    0x0440,  # 13
-    0x0450,  # 14
-    0x0448,  # 15
-    0x0458   # 16
-]
+UNITS = (
+    (0x0000, 1),
+    (0x0010, 2),
+    (0x0008, 3),
+    (0x0018, 4),
+    (0x0040, 5),
+    (0x0050, 6),
+    (0x0048, 7),
+    (0x0058, 8),
+    (0x0400, 9),
+    (0x0410, 10),
+    (0x0408, 11),
+    (0x0400, 12),
+    (0x0440, 13),
+    (0x0450, 14),
+    (0x0448, 15),
+    (0x0458, 16),
+)
+UNIT_LIST = [unit[0] for unit in UNITS]
+UNIT_LABELS = [unit[1] for unit in UNITS]
 MAX_UNIT = 16
 
 # Command Code Masks
@@ -102,10 +106,6 @@ CMD_LAMPS_OFF = 0x0084
 # Data header and footer
 DATA_HDR = 0xD5AA
 DATA_FTR = 0xAD
-
-# Raspberry Pi GPIO pins. Change to whatever you want to use.
-DTR_PIN = 24
-RTS_PIN = 25
 
 
 class FirecrackerException(Exception):
