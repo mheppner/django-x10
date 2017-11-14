@@ -14,5 +14,6 @@ router.register(r'scenes', views.SceneViewSet)
 
 urlpatterns = [
     url(r'^token-auth/', obtain_auth_token),
+    url(r'^auth/', include('rest_auth.urls')),
     url(r'^', include(router.urls, namespace='api')),
 ]

@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'channels',
     'rest_framework',
     'rest_framework.authtoken',
+    'rest_auth',
     'adminsortable2',
     'crispy_forms',
     'guardian',
