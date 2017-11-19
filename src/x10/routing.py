@@ -1,3 +1,9 @@
-from channels.routing import route
+"""Main project channels routing."""
+from channels.routing import include
 
-routes = []
+from core.routing import routes as core_routes
+
+
+routes = [
+    include(core_routes),
+]

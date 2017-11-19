@@ -1,6 +1,7 @@
 """Core models."""
 from datetime import datetime, timedelta
 
+from channels import Group
 from crontab import CronTab
 from django.conf import settings
 from django.core.cache import cache
@@ -12,9 +13,11 @@ from django.utils.timezone import now
 import ephem
 import pytz
 from rest_framework.authtoken.models import Token
+from rest_framework.renderers import JSONRenderer
 
 from x10.interface import HOUSE_LABELS, send_command, UNIT_LABELS
 from x10.lock import cache_lock
+from .consumers import UNITS_GROUP
 
 
 class InvalidSignalError(Exception):
@@ -289,11 +292,41 @@ class Unit(models.Model):
                 status = status and send_command(settings.X10_SERIAL, self.house, self.number,
                                                  command)
 
-        # only if the command was sent and the command was on or off, resave the state
-        if status and command in (Unit.ON_ACTION, Unit.OFF_ACTION):
-            self.state = command == Unit.ON_ACTION
-            self.save()
+        if status:
+            # send the command action out to the websocket
+            Group(UNITS_GROUP).send({
+                'text': JSONRenderer().render({
+                    'trigger': type(self).__name__,
+                    'id': self.slug,
+                    'action': 'send_signal',
+                    'payload': {'command': command}
+                }).decode('utf-8')
+            })
+
+            # save the state matching the on or off action
+            if command in (Unit.ON_ACTION, Unit.OFF_ACTION):
+                self.state = command == Unit.ON_ACTION
+                self.save()
         return status
+
+    @staticmethod
+    def post_save(sender, instance=None, created=False, **kwargs):
+        """Send the serialized instance out to the websocket."""
+        from .serializers import UnitSerializer  # noqa
+        serializer = UnitSerializer(instance)
+
+        Group(UNITS_GROUP).send({
+            'text': JSONRenderer().render({
+                'trigger': type(instance).__name__,
+                'id': instance.slug,
+                'action': 'save',
+                'created': created,
+                'payload': serializer.data
+            }).decode('utf-8')
+        })
+
+
+post_save.connect(Unit.post_save, sender=Unit)
 
 
 class Scene(models.Model):
