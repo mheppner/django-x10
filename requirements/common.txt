@@ -1,11 +1,8 @@
-celery==4.1.0
 channels==1.1.8
 crontab==0.22.0
 Django==1.11.7
 django-admin-sortable2==0.6.16
 django-cachalot==1.5.0
-django-celery-beat==1.1.0
-django-celery-results==1.0.1
 django-crispy-forms==1.7.0
 django-environ==0.4.4
 django-filter==1.1.0

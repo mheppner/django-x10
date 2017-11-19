@@ -66,8 +66,6 @@ INSTALLED_APPS = [
     'adminsortable2',
     'crispy_forms',
     'guardian',
-    'django_celery_beat',
-    'django_celery_results',
     'django_filters',
 
     'core',
@@ -259,15 +257,6 @@ REST_FRAMEWORK = {
         'user': '15/second'
     },
 }
-
-
-'''
-Celery
-'''
-CELERY_BROKER_URL = env.str('CELERY_BROKER_URL', default='amqp://')
-CELERY_RESULT_BACKEND = env.str('CELERY_RESULT_BACKEND', default='django-cache')
-CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
-CELERY_TIMEZONE = TIME_ZONE
 
 
 '''

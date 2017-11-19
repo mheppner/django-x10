@@ -1,10 +1,10 @@
 """Admin panel options for core app."""
 from adminsortable2.admin import SortableAdminMixin
-from django.contrib import admin
+from django.contrib import admin, messages
 from guardian.admin import GuardedModelAdmin
 
+from x10.interface import FirecrackerException
 from . models import Scene, Schedule, SolarSchedule, Unit
-from . tasks import run_group
 
 
 @admin.register(Schedule)
@@ -39,10 +39,23 @@ class UnitAdmin(SortableAdminMixin, GuardedModelAdmin):
 
     def _action(self, request, queryset, action):
         """Run an admin action on a set of units."""
-        units = list(queryset.values_list('slug', flat=True))
-        units_str = ', '.join(units)
-        run_group.delay(units, action)
-        self.message_user(request, f'Sent task to turn {action} units: {units_str}')
+        success = []
+        fail = []
+        for unit in queryset.all():
+            try:
+                unit.send_signal(action)
+            except FirecrackerException:
+                fail.append(str(unit.slug))
+            else:
+                success.append(str(unit.slug))
+        if len(success):
+            success = ', '.join(success)
+            self.message_user(request, f'Sent task to turn {action} units: {success}')
+        if len(fail):
+            fail = ', '.join(fail)
+            self.message_user(request,
+                              f'Could not send task to turn {action} units: {fail}',
+                              level=messages.ERROR)
 
     def turn_on(self, request, queryset):
         """Admin action to turn on units."""
