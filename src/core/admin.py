@@ -4,6 +4,7 @@ from django.contrib import admin, messages
 from guardian.admin import GuardedModelAdmin
 
 from x10.interface import FirecrackerException
+from x10.lock import CacheLockException
 from . models import Scene, Schedule, SolarSchedule, Unit
 
 
@@ -44,7 +45,7 @@ class UnitAdmin(SortableAdminMixin, GuardedModelAdmin):
         for unit in queryset.all():
             try:
                 unit.send_signal(action)
-            except FirecrackerException:
+            except (CacheLockException, FirecrackerException):
                 fail.append(str(unit.slug))
             else:
                 success.append(str(unit.slug))
@@ -59,12 +60,12 @@ class UnitAdmin(SortableAdminMixin, GuardedModelAdmin):
 
     def turn_on(self, request, queryset):
         """Admin action to turn on units."""
-        self._action(request, queryset, 'on')
+        self._action(request, queryset, Unit.ON_ACTION)
     turn_on.short_description = 'Turn on'
 
     def turn_off(self, request, queryset):
         """Admin action to turn off units."""
-        self._action(request, queryset, 'off')
+        self._action(request, queryset, Unit.OFF_ACTION)
     turn_off.short_description = 'Turn off'
 
     fieldsets = (

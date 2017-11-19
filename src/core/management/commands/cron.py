@@ -8,8 +8,9 @@ from django.core.management.base import BaseCommand
 from django.utils.timezone import now
 import pytz
 
-from core.models import Schedule
+from core.models import Schedule, Unit
 from x10.interface import FirecrackerException
+from x10.lock import CacheLockException
 
 
 logger = logging.getLogger(__name__)
@@ -66,16 +67,16 @@ class Command(BaseCommand):
                     for unit in schedule.on_unit_set.all():
                         logger.debug(f'turning {unit} on')
                         try:
-                            unit.send_signal('on')
-                        except FirecrackerException as e:
+                            unit.send_signal(Unit.ON_ACTION)
+                        except (CacheLockException, FirecrackerException) as e:
                             logger.exception(e)
 
                     logger.info(f'running OFF tasks')
                     for unit in schedule.off_unit_set.all():
                         logger.debug(f'turning {unit} off')
                         try:
-                            unit.send_signal('off')
-                        except FirecrackerException as e:
+                            unit.send_signal(Unit.OFF_ACTION)
+                        except (CacheLockException, FirecrackerException) as e:
                             logger.exception(e)
 
             # get the duration of the loop

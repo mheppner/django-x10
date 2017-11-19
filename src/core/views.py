@@ -3,13 +3,14 @@ from django.core.cache import cache
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import detail_route, list_route
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, ParseError
 from rest_framework.filters import DjangoObjectPermissionsFilter
 from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
 from rest_framework.response import Response
 
+from x10.interface import FirecrackerException
 from x10.lock import CacheLockException
-from .models import RealPerson, Scene, Unit
+from .models import InvalidSignalError, RealPerson, Scene, Unit
 from .permissions import DjangoObjectPermissionsPlusView
 from .serializers import CommandSerializer, SceneSerializer, UnitSerializer
 
@@ -41,16 +42,11 @@ class UnitViewSet(viewsets.ModelViewSet):
         unit = self.get_object()
 
         try:
-            if data['action'] in ('on', 'off'):
-                unit.state = data['action'] == 'on'
-                unit.save()
-            else:
-                # either a brt or dim command
-                unit.send_signal(data['action'], data['multiplier'])
-        except CacheLockException:
+            unit.send_signal(data['action'], data['multiplier'])
+        except (CacheLockException, FirecrackerException):
             raise ServiceUnavailable
-        except Exception as e:
-            raise APIException(e)
+        except InvalidSignalError as e:
+            raise ParseError(detail=str(e))
 
         return Response({'state': unit.state})
 
@@ -88,13 +84,10 @@ class PersonViewSet(viewsets.ViewSet):
         # turn off all lights
         for unit in on_units:
             try:
-                unit.state = False
-                unit.save()
+                unit.send_signal(Unit.OFF_ACTION)
                 log.append(f'Turned {unit} off')
-            except CacheLockException:
+            except (CacheLockException, FirecrackerException):
                 raise ServiceUnavailable
-            except Exception as e:
-                raise APIException(e)
 
         return Response({
             'message': 'Have a nice day!',
@@ -120,13 +113,10 @@ class PersonViewSet(viewsets.ViewSet):
                 pass
             else:
                 try:
-                    unit.state = True
-                    unit.save()
+                    unit.send_signal(Unit.ON_ACTION)
                     log.append(f'Turned {unit} back on')
-                except CacheLockException:
+                except (CacheLockException, FirecrackerException):
                     raise ServiceUnavailable
-                except Exception as e:
-                    raise APIException(e)
 
         return Response({
             'message': 'Welcome home!',

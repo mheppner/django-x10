@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models.signals import post_init, post_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.timezone import now
 import ephem
@@ -181,6 +181,18 @@ class Unit(models.Model):
     HOUSE_CHOICES = [(h.upper(), h.upper()) for h in HOUSE_LABELS]
     NUMBER_CHOICES = [(n, str(n)) for n in UNIT_LABELS]
 
+    ON_ACTION = 'on'
+    OFF_ACTION = 'off'
+    BRIGHT_ACTION = 'brt'
+    DIM_ACTION = 'dim'
+    ACTION_CHOICES = (
+        (ON_ACTION, 'On'),
+        (OFF_ACTION, 'Off'),
+        (BRIGHT_ACTION, 'Bright'),
+        (DIM_ACTION, 'Dim'),
+    )
+    ACTION_COMMANDS = [a for a, _ in ACTION_CHOICES]
+
     class Meta:
         """Model options."""
 
@@ -188,8 +200,6 @@ class Unit(models.Model):
         permissions = (
             ('view_unit', 'Can view unit'),
         )
-
-    _previous_state = None
 
     name = models.CharField(
         max_length=128,
@@ -259,36 +269,31 @@ class Unit(models.Model):
         :returns: the status if the command was sent
         """
         status = True
-        if command is None:
-            command = 'on' if self.state else 'off'
 
+        # no command given, resend the current state
+        if command is None:
+            command = Unit.ON_ACTION if self.state else Unit.OFF_ACTION
+
+        # check if the command was valid
         command = command.lower()
-        if command not in ('on', 'off', 'brt', 'dim'):
+        if command not in Unit.ACTION_COMMANDS:
             raise InvalidSignalError(f'the command {command} does not exist')
 
-        if (command == 'brt' or command == 'dim') and not self.dimmable:
+        # only allow bright or dim actions if the unit is dimmable
+        if (command == Unit.BRIGHT_ACTION or command == Unit.DIM_ACTION) and not self.dimmable:
             raise InvalidSignalError(f'the {command} command cannot be sent to this device')
 
+        # grab the lock and send the signal
         with cache_lock('x10_interface', attempts, sleep_time):
             for i in range(0, multiplier):
                 status = status and send_command(settings.X10_SERIAL, self.house, self.number,
                                                  command)
+
+        # only if the command was sent and the command was on or off, resave the state
+        if status and command in (Unit.ON_ACTION, Unit.OFF_ACTION):
+            self.state = command == Unit.ON_ACTION
+            self.save()
         return status
-
-    @staticmethod
-    def post_init(sender, instance, **kwargs):
-        """Save the current state after init of the object."""
-        instance._previous_state = instance.state
-
-    @staticmethod
-    def post_save(sender, instance, **kwargs):
-        """Compare the last known state of the object and send a task if needed."""
-        if instance._previous_state != instance.state:
-            instance.send_signal()
-
-
-post_save.connect(Unit.post_save, sender=Unit)
-post_init.connect(Unit.post_init, sender=Unit)
 
 
 class Scene(models.Model):

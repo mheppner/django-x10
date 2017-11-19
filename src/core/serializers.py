@@ -30,12 +30,5 @@ class SceneSerializer(serializers.ModelSerializer):
 class CommandSerializer(serializers.Serializer):
     """Serializer for sending commands."""
 
-    ACTION_CHOICES = (
-        ('on', 'On'),
-        ('off', 'Off'),
-        ('brt', 'Bright'),
-        ('dim', 'Dim'),
-    )
-
-    action = serializers.ChoiceField(choices=ACTION_CHOICES)
+    action = serializers.ChoiceField(choices=Unit.ACTION_CHOICES)
     multiplier = serializers.IntegerField(min_value=1, max_value=16, default=1)
