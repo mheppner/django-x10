@@ -1,11 +1,14 @@
 """Core models."""
-from datetime import datetime
+from datetime import datetime, timedelta
 
+from crontab import CronTab
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.signals import post_init, post_save
 from django.dispatch import receiver
+from django.utils.timezone import now
 import ephem
 import pytz
 from rest_framework.authtoken.models import Token
@@ -98,7 +101,7 @@ class SolarSchedule(models.Model):
         cal.pressure = 0
         return cal
 
-    def next_time(self, current_time: datetime):
+    def next_time(self, current_time: datetime = now()):
         """Get the next time of the event based on the current time.
 
         :param current_time: timezone-aware starting time
@@ -121,6 +124,55 @@ class SolarSchedule(models.Model):
         # convert to utc datetime
         next_utc = next_time.datetime().replace(tzinfo=pytz.utc)
         return next_utc
+
+
+class Schedule(models.Model):
+    """Model to represent and calculate times for crontab-based events."""
+
+    crontab = models.CharField(
+        max_length=64,
+        help_text='Crontab entry',
+        unique=True)
+
+    def __str__(self):
+        """Use event text when converting to string."""
+        return self.crontab
+
+    def save(self, *args, **kwargs):
+        """Save hook to also perform clean action."""
+        self.full_clean()
+        super(Schedule, self).save(*args, **kwargs)
+
+    def clean(self, *args, **kwargs):
+        """Clean hook to validate the crontab entry."""
+        try:
+            CronTab(self.crontab)
+        except ValueError as e:
+            raise ValidationError(str(e))
+        super(Schedule, self).clean(*args, **kwargs)
+
+    def calendar(self):
+        """Create a CronTab for the event.
+
+        :returns: crontab object
+        """
+        return CronTab(self.crontab)
+
+    def next_time(self, current_time: datetime = now()):
+        """Get the next time of the event based on the current time.
+
+        :param current_time: timezone-aware starting time
+        :returns: next event time, in UTC
+        """
+        # ensure the input time is in utc
+        current_time = current_time.astimezone(pytz.utc)
+
+        # get the crontab object
+        cal = self.calendar()
+
+        # calculate the next delta time to the next event
+        delta = timedelta(seconds=cal.next(current_time))
+        return current_time + delta
 
 
 class Unit(models.Model):
@@ -167,15 +219,25 @@ class Unit(models.Model):
         default=True,
         help_text='If this unit can be controlled by other tasks.')
     on_schedules = models.ManyToManyField(
-        SolarSchedule,
+        Schedule,
         blank=True,
         related_name='on_unit_set',
         help_text='Automatic schedules to turn on the unit.')
     off_schedules = models.ManyToManyField(
-        SolarSchedule,
+        Schedule,
         blank=True,
         related_name='off_unit_set',
         help_text='Automatic schedules to turn off the unit.')
+    on_solar_schedules = models.ManyToManyField(
+        SolarSchedule,
+        blank=True,
+        related_name='on_unit_set',
+        help_text='Automatic solar schedules to turn on the unit.')
+    off_solar_schedules = models.ManyToManyField(
+        SolarSchedule,
+        blank=True,
+        related_name='off_unit_set',
+        help_text='Automatic solar schedules to turn off the unit.')
 
     def __str__(self):
         """Use the display name when converting to string."""
