@@ -3,8 +3,21 @@ from adminsortable2.admin import SortableAdminMixin
 from django.contrib import admin
 from guardian.admin import GuardedModelAdmin
 
-from . models import Scene, Unit
+from . models import Scene, SolarSchedule, Unit
 from . tasks import run_group
+
+
+@admin.register(SolarSchedule)
+class SolarScheduleAdmin(admin.ModelAdmin):
+    """Model options for SolarSchedule models."""
+
+    fieldsets = (
+        (None, {
+            'fields': ('event',)
+        }),
+    )
+    list_display = ('event',)
+    search_fields = ('event',)
 
 
 @admin.register(Unit)
@@ -34,6 +47,9 @@ class UnitAdmin(SortableAdminMixin, GuardedModelAdmin):
                        ('house', 'number',),
                        ('dimmable', 'auto_managed'))
         }),
+        ('Schedule', {
+            'fields': ('on_schedules', 'off_schedules',)
+        })
     )
     list_display = ('slug', 'name', 'state', 'house', 'number', 'dimmable', 'auto_managed')
     list_editable = ('name', 'house', 'number', 'dimmable', 'auto_managed')
