@@ -154,7 +154,7 @@ class Unit(models.Model):
     @staticmethod
     def post_save(sender, instance=None, created=False, **kwargs):
         """Send the serialized instance out to the websocket."""
-        from .serializers import UnitSerializer  # noqa
+        from core.serializers import UnitSerializer  # noqa
         serializer = UnitSerializer(instance)
 
         Group(UNITS_GROUP).send({
