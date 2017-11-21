@@ -138,7 +138,8 @@ class Unit(models.Model):
             # send the command action out to the websocket
             Group(UNITS_GROUP).send({
                 'text': JSONRenderer().render({
-                    'trigger': type(self).__name__,
+                    'namespace': 'units',
+                    'action': 'send_signal',
                     'id': self.slug,
                     'action': 'send_signal',
                     'payload': {'command': command}
@@ -159,9 +160,9 @@ class Unit(models.Model):
 
         Group(UNITS_GROUP).send({
             'text': JSONRenderer().render({
-                'trigger': type(instance).__name__,
+                'namespace': 'units',
+                'action': 'post_save',
                 'id': instance.slug,
-                'action': 'save',
                 'created': created,
                 'payload': serializer.data
             }).decode('utf-8')
