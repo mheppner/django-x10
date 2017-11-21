@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'rest_auth',
+    'corsheaders',
     'adminsortable2',
     'crispy_forms',
     'guardian',
@@ -198,6 +199,7 @@ TIME_ZONE = env.str('TIME_ZONE', default='America/New_York')
 HTTP
 '''
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -257,6 +259,14 @@ REST_FRAMEWORK = {
         'user': '15/second'
     },
 }
+
+
+'''
+CORS
+'''
+CORS_ORIGIN_ALLOW_ALL = env.bool('CORS_ORIGIN_ALLOW_ALL', default=True)
+CORS_ORIGIN_WHITELIST = env.list('CORS_ORIGIN_WHITELIST', default=[])
+CORS_ALLOW_CREDENTIALS = env.bool('CORS_ALLOW_CREDENTIALS', default=True)
 
 
 '''
