@@ -6,7 +6,7 @@ from channels.auth import channel_session_user, channel_session_user_from_http
 from rest_framework.renderers import JSONRenderer
 
 
-UNITS_GROUP = 'units'
+STATUS_GROUP = 'status'
 
 
 @channel_session_user_from_http
@@ -14,7 +14,7 @@ def ws_connect(message):
     """Add only authenticated users to the channel group."""
     if message.user.is_authenticated():
         message.reply_channel.send({'accept': True})
-        Group(UNITS_GROUP).add(message.reply_channel)
+        Group(STATUS_GROUP).add(message.reply_channel)
     else:
         message.reply_channel.send({'accept': False})
 
@@ -52,4 +52,4 @@ def ws_receive(message):
 @channel_session_user
 def ws_disconnect(message):
     """Remove sockets from the group."""
-    Group(UNITS_GROUP).discard(message.reply_channel)
+    Group(STATUS_GROUP).discard(message.reply_channel)

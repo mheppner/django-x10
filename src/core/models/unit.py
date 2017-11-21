@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models.signals import post_save
 from rest_framework.renderers import JSONRenderer
 
-from core.consumers import UNITS_GROUP
+from core.consumers import STATUS_GROUP
 from x10.interface import HOUSE_LABELS, send_command, UNIT_LABELS
 from x10.lock import cache_lock
 from .schedule import Schedule
@@ -136,7 +136,7 @@ class Unit(models.Model):
 
         if status:
             # send the command action out to the websocket
-            Group(UNITS_GROUP).send({
+            Group(STATUS_GROUP).send({
                 'text': JSONRenderer().render({
                     'namespace': 'units',
                     'action': 'send_signal',
@@ -158,7 +158,7 @@ class Unit(models.Model):
         from core.serializers import UnitSerializer  # noqa
         serializer = UnitSerializer(instance)
 
-        Group(UNITS_GROUP).send({
+        Group(STATUS_GROUP).send({
             'text': JSONRenderer().render({
                 'namespace': 'units',
                 'action': 'post_save',
