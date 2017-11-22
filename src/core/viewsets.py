@@ -59,6 +59,24 @@ class SceneViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, DjangoModelPermissions]
     lookup_field = 'slug'
 
+    @detail_route(methods=['POST'])
+    def signal(self, request, slug=None):
+        """Child view to send a command to the scene."""
+        serializer = CommandSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        scene = self.get_object()
+
+        try:
+            status = scene.send_signal(data['action'], data['multiplier'])
+        except (CacheLockException, FirecrackerException):
+            raise ServiceUnavailable
+        except InvalidSignalError as e:
+            raise ParseError(detail=str(e))
+
+        return Response({'status': status})
+
 
 class PersonViewSet(viewsets.ViewSet):
     """Viewset for controlling leave/arrive events for real people."""

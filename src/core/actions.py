@@ -76,6 +76,55 @@ def send_units_status(qs=None, channel=None):
     })
 
 
+def send_scene_status(instance, created=False, channel=None):
+    """Sends the serialized scene to the websocket.
+
+    :param instance: a Scene model instance
+    :param created: if the scene was created
+    :param channel: an outgoing reply channel, defaults to the entire group
+    """
+    if channel is None:
+        channel = Group(STATUS_GROUP)
+
+    from core.serializers import SceneSerializer  # noqa
+    serializer = SceneSerializer(instance)
+
+    channel.send({
+        'text': JSONRenderer().render({
+            'namespace': 'scenes',
+            'action': 'post_save',
+            'id': instance.slug,
+            'created': created,
+            'payload': serializer.data
+        }).decode('utf-8')
+    })
+
+
+def send_scenes_status(qs=None, channel=None):
+    """Sends all serialized scenes to the websocket.
+
+    :param qs: a queryset for Scenes, defaults to all instances
+    :param channel: an outgoing reply channel, defaults to the entire group
+    """
+    if channel is None:
+        channel = Group(STATUS_GROUP)
+
+    from core.serializers import SceneSerializer  # noqa
+    if qs is None:
+        from core.models import Scene  # noqa
+        qs = Scene.objects.all()
+
+    serializer = SceneSerializer(qs, many=True)
+
+    channel.send({
+        'text': JSONRenderer().render({
+            'namespace': 'scenes',
+            'action': 'set',
+            'payload': serializer.data
+        }).decode('utf-8')
+    })
+
+
 def send_real_person_status(status=None, channel=None):
     """Sends the status of the person to the websocket.
 

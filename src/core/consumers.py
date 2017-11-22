@@ -5,7 +5,7 @@ from channels import Group
 from channels.auth import channel_session_user, channel_session_user_from_http
 from rest_framework.renderers import JSONRenderer
 
-from .actions import STATUS_GROUP, send_units_status, send_real_person_status
+from .actions import STATUS_GROUP, send_units_status, send_real_person_status, send_scenes_status
 
 
 @channel_session_user_from_http
@@ -15,6 +15,7 @@ def ws_connect(message):
         message.reply_channel.send({'accept': True})
         send_real_person_status(channel=message.reply_channel)
         send_units_status(channel=message.reply_channel)
+        send_scenes_status(channel=message.reply_channel)
         Group(STATUS_GROUP).add(message.reply_channel)
     else:
         message.reply_channel.send({'accept': False})
