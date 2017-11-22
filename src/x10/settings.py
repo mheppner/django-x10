@@ -9,6 +9,11 @@ except ImportError:
     debug_toolbar = None
 
 try:
+    import asgi_redis
+except ImportError:
+    asgi_redis = None
+
+try:
     import asgi_ipc
 except ImportError:
     asgi_ipc = None
@@ -107,8 +112,14 @@ CHANNEL_LAYERS = {
         'ROUTING': 'x10.routing.routes',
     },
 }
+CHANNELS_REDIS_HOST = env.list('CHANNELS_REDIS_HOST', default=[])
 
-if asgi_ipc is not None:
+if asgi_redis is not None and len(CHANNELS_REDIS_HOST):
+    CHANNEL_LAYERS['default']['BACKEND'] = 'asgi_redis.RedisChannelLayer'
+    CHANNEL_LAYERS['default']['CONFIG'] = {
+        'hosts': CHANNELS_REDIS_HOST
+    }
+elif asgi_ipc is not None:
     CHANNEL_LAYERS['default']['BACKEND'] = 'asgi_ipc.IPCChannelLayer'
 else:
     # in-memory layer does not work across processes
