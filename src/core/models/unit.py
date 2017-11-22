@@ -1,11 +1,9 @@
 """Models related to Units."""
-from channels import Group
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
-from rest_framework.renderers import JSONRenderer
 
-from core.consumers import STATUS_GROUP
+from core.actions import send_unit_status, send_signal_status
 from x10.interface import HOUSE_LABELS, send_command, UNIT_LABELS
 from x10.lock import cache_lock
 from .schedule import Schedule
@@ -136,15 +134,7 @@ class Unit(models.Model):
 
         if status:
             # send the command action out to the websocket
-            Group(STATUS_GROUP).send({
-                'text': JSONRenderer().render({
-                    'namespace': 'units',
-                    'action': 'send_signal',
-                    'id': self.slug,
-                    'action': 'send_signal',
-                    'payload': {'command': command}
-                }).decode('utf-8')
-            })
+            send_signal_status(self, command)
 
             # save the state matching the on or off action
             if command in (Unit.ON_ACTION, Unit.OFF_ACTION):
@@ -155,18 +145,7 @@ class Unit(models.Model):
     @staticmethod
     def post_save(sender, instance=None, created=False, **kwargs):
         """Send the serialized instance out to the websocket."""
-        from core.serializers import UnitSerializer  # noqa
-        serializer = UnitSerializer(instance)
-
-        Group(STATUS_GROUP).send({
-            'text': JSONRenderer().render({
-                'namespace': 'units',
-                'action': 'post_save',
-                'id': instance.slug,
-                'created': created,
-                'payload': serializer.data
-            }).decode('utf-8')
-        })
+        send_unit_status(instance, created)
 
 
 post_save.connect(Unit.post_save, sender=Unit)
