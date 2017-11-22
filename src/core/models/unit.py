@@ -3,7 +3,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
 
-from core.actions import send_unit_status, send_signal_status
+from core.actions import send_unit_status, send_command_status
 from x10.interface import HOUSE_LABELS, send_command, UNIT_LABELS
 from x10.lock import cache_lock
 from .schedule import Schedule
@@ -129,17 +129,15 @@ class Unit(models.Model):
         # grab the lock and send the signal
         with cache_lock('x10_interface', attempts, sleep_time):
             for i in range(0, multiplier):
-                status = status and send_command(settings.X10_SERIAL, self.house, self.number,
-                                                 command)
+                send_command(settings.X10_SERIAL, self.house, self.number, command)
 
-        if status:
-            # send the command action out to the websocket
-            send_signal_status(self, command)
+        # send the command action out to the websocket
+        send_command_status(self, command)
 
-            # save the state matching the on or off action
-            if command in (Unit.ON_ACTION, Unit.OFF_ACTION):
-                self.state = command == Unit.ON_ACTION
-                self.save()
+        # save the state matching the on or off action
+        if command in (Unit.ON_ACTION, Unit.OFF_ACTION):
+            self.state = command == Unit.ON_ACTION
+            self.save()
         return status
 
     @staticmethod

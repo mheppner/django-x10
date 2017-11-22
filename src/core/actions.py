@@ -1,3 +1,4 @@
+"""Centralized actions for sending to websockets."""
 from channels import Group
 from rest_framework.renderers import JSONRenderer
 
@@ -5,8 +6,8 @@ from rest_framework.renderers import JSONRenderer
 STATUS_GROUP = 'status'
 
 
-def send_signal_status(unit, command, channel=None):
-    """Sends the unit signal to the websocket.
+def send_command_status(unit, command, channel=None):
+    """Send the unit signal to the websocket.
 
     :param unit: a Unit model instance
     :param command: the command that was activated
@@ -27,7 +28,7 @@ def send_signal_status(unit, command, channel=None):
 
 
 def send_unit_status(instance, created=False, channel=None):
-    """Sends the serialized unit to the websocket.
+    """Send the serialized unit to the websocket.
 
     :param instance: a Unit model instance
     :param created: if the unit was created
@@ -51,7 +52,7 @@ def send_unit_status(instance, created=False, channel=None):
 
 
 def send_units_status(qs=None, channel=None):
-    """Sends all serialized units to the websocket.
+    """Send all serialized units to the websocket.
 
     :param qs: a queryset for Units, defaults to all instances
     :param channel: an outgoing reply channel, defaults to the entire group
@@ -77,7 +78,7 @@ def send_units_status(qs=None, channel=None):
 
 
 def send_scene_status(instance, created=False, channel=None):
-    """Sends the serialized scene to the websocket.
+    """Send the serialized scene to the websocket.
 
     :param instance: a Scene model instance
     :param created: if the scene was created
@@ -101,7 +102,7 @@ def send_scene_status(instance, created=False, channel=None):
 
 
 def send_scenes_status(qs=None, channel=None):
-    """Sends all serialized scenes to the websocket.
+    """Send all serialized scenes to the websocket.
 
     :param qs: a queryset for Scenes, defaults to all instances
     :param channel: an outgoing reply channel, defaults to the entire group
@@ -126,7 +127,7 @@ def send_scenes_status(qs=None, channel=None):
 
 
 def send_real_person_status(status=None, channel=None):
-    """Sends the status of the person to the websocket.
+    """Send the status of the person to the websocket.
 
     :param status: the current status of the RealPerson, will fetch the status automatically
     :param channel: an outgoing reply channel, defaults to the entire group
