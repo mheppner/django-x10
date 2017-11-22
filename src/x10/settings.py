@@ -42,6 +42,7 @@ Base settings
 DEBUG = env('DEBUG')
 SECRET_KEY = env('SECRET_KEY')
 INTERNAL_IPS = env.list('INTERNAL_IPS', default=[])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 HTTPS_ONLY = env.bool('HTTPS_ONLY', default=False)
 WSGI_APPLICATION = 'x10.wsgi.application'
 ROOT_URLCONF = 'x10.urls'
