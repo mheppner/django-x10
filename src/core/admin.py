@@ -5,7 +5,16 @@ from guardian.admin import GuardedModelAdmin
 
 from x10.interface import FirecrackerException
 from x10.lock import CacheLockException
-from . models import Scene, Schedule, SolarSchedule, Unit
+from . models import PersistentToken, Scene, Schedule, SolarSchedule, Unit
+
+
+@admin.register(PersistentToken)
+class PersistentTokenAdmin(admin.ModelAdmin):
+    """Model options for PersistentToken models."""
+
+    list_display = ('key', 'user', 'created')
+    fields = ('user',)
+    ordering = ('-created',)
 
 
 @admin.register(Schedule)
