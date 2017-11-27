@@ -131,6 +131,16 @@ class PersonViewSet(viewsets.ViewSet):
                 except (CacheLockException, FirecrackerException):
                     raise ServiceUnavailable
 
+        # turn on units that fall within their scheduled on times
+        managed_units = Unit.objects.filter(state=False, auto_managed=True)
+        for unit in managed_units.all():
+            if unit.intended_state():
+                try:
+                    unit.send_signal(Unit.ON_ACTION)
+                    log.append(f'Turned {unit} on due to a scheduled event')
+                except (CacheLockException, FirecrackerException):
+                    raise ServiceUnavailable
+
         return Response({
             'message': 'Welcome home!',
             'log': log

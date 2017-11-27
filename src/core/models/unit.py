@@ -1,7 +1,11 @@
 """Models related to Units."""
+from datetime import datetime
+
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
+from django.utils.timezone import now
+import pytz
 
 from core.actions import send_unit_status, send_command_status
 from x10.interface import HOUSE_LABELS, send_command, UNIT_LABELS
@@ -136,6 +140,53 @@ class Unit(models.Model):
             self.state = command == Unit.ON_ACTION
             self.save()
         return status
+
+    def daily_events(self, current_time: datetime = now()):
+        """Get times for all events in the current day.
+
+        :param current_time: the current time to check against
+        :returns: a list of dicts containing event time and state (on/off)
+        """
+        # get today's date only (remove time info)
+        current_time = current_time.astimezone(pytz.utc)
+        today = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # get a list of all event times for today
+        on_dts = [ev.next_time(today) for ev in self.on_schedules.all()]
+        on_dts += [ev.next_time(today) for ev in self.on_solar_schedules.all()]
+        off_dts = [ev.next_time(today) for ev in self.off_schedules.all()]
+        off_dts += [ev.next_time(today) for ev in self.off_solar_schedules.all()]
+
+        # create a single list of events for the entire day
+        events = []
+        for dt in on_dts:
+            events.append({'time': dt, 'state': True})
+        for dt in off_dts:
+            events.append({'time': dt, 'state': False})
+
+        # sort the events by their time
+        return sorted(events, key=lambda k: k['time'])
+
+    def intended_state(self, current_time: datetime = now()):
+        """Returns the state the unit should be set to for the current time.
+
+        :param current_time: the current time to check against
+        :returns: the desired state based on the schedules.
+        """
+        # get schedule of events for today
+        # these are ordered by event time
+        schedule = self.daily_events(current_time)
+
+        state = False
+        for ev in schedule:
+            # the event time occurs in the future
+            # break out of the loop, leaving the last known state
+            if ev['time'] >= current_time:
+                break
+
+            # set the state to represent the action
+            state = ev['state']
+        return state
 
     @staticmethod
     def post_save(sender, instance=None, created=False, **kwargs):
