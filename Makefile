@@ -1,6 +1,8 @@
 PROJECT=src
 FLAKE8=flake8
 PYDOCSTYLE=pydocstyle
+CIRCUSCTL=circusctl
+
 
 all: help
 
@@ -10,6 +12,7 @@ help:
 	@echo "distcheck ---------- - Check distribution for problems."
 	@echo "  flake              - Run flake8 on the source code."
 	@echo "  docscheck          - Run pydocstyle on Python files."
+	@echo "circusctl ---------- - Launch circusctl."
 
 clean: clean-pyc
 
@@ -24,3 +27,6 @@ flake:
 
 docscheck:
 	$(PYDOCSTYLE) "$(PROJECT)"
+
+circusctl:
+	$(CIRCUSCTL) --endpoint=tcp://127.0.0.1:6666
