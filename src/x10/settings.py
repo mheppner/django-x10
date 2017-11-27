@@ -72,7 +72,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'adminsortable2',
     'crispy_forms',
-    'guardian',
     'django_filters',
 
     'core',
@@ -146,7 +145,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
-    'guardian.backends.ObjectPermissionBackend',
 )
 
 

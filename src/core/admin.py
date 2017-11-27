@@ -1,7 +1,6 @@
 """Admin panel options for core app."""
 from adminsortable2.admin import SortableAdminMixin
 from django.contrib import admin, messages
-from guardian.admin import GuardedModelAdmin
 
 from x10.interface import FirecrackerException
 from x10.lock import CacheLockException
@@ -44,7 +43,7 @@ class SolarScheduleAdmin(admin.ModelAdmin):
 
 
 @admin.register(Unit)
-class UnitAdmin(SortableAdminMixin, GuardedModelAdmin):
+class UnitAdmin(SortableAdminMixin, admin.ModelAdmin):
     """Model options for Unit models."""
 
     def _action(self, request, queryset, action):

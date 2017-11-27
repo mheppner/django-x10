@@ -40,9 +40,6 @@ class Unit(models.Model):
         """Model options."""
 
         ordering = ('order',)
-        permissions = (
-            ('view_unit', 'Can view unit'),
-        )
 
     name = models.CharField(
         max_length=128,

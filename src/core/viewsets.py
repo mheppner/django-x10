@@ -4,14 +4,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.exceptions import APIException, ParseError
-from rest_framework.filters import DjangoObjectPermissionsFilter
-from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
 from rest_framework.response import Response
 
 from x10.interface import FirecrackerException
 from x10.lock import CacheLockException
 from .models import InvalidSignalError, RealPerson, Scene, Unit
-from .permissions import DjangoObjectPermissionsPlusView
 from .serializers import CommandSerializer, SceneSerializer, UnitSerializer
 
 
@@ -27,9 +24,8 @@ class UnitViewSet(viewsets.ModelViewSet):
 
     queryset = Unit.objects.all()
     serializer_class = UnitSerializer
-    permission_classes = [DjangoObjectPermissionsPlusView]
     lookup_field = 'slug'
-    filter_backends = [DjangoObjectPermissionsFilter, DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend]
     filter_fields = ('dimmable', 'state')
 
     @detail_route(methods=['POST'])
@@ -56,7 +52,6 @@ class SceneViewSet(viewsets.ModelViewSet):
 
     queryset = Scene.objects.all()
     serializer_class = SceneSerializer
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
     lookup_field = 'slug'
 
     @detail_route(methods=['POST'])
