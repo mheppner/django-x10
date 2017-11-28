@@ -330,8 +330,9 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': False,
         },
-        'core.management.commands': {
+        'core': {
             'handlers': ['console'],
+            'level': env.str('CORE_LOG_LEVEL', default='WARN'),
             'propagate': True
         },
     }

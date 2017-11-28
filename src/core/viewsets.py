@@ -1,4 +1,6 @@
 """Core viewsets."""
+import logging
+
 from django.core.cache import cache
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
@@ -10,6 +12,8 @@ from x10.interface import FirecrackerException
 from x10.lock import CacheLockException
 from .models import InvalidSignalError, RealPerson, Scene, Unit
 from .serializers import CommandSerializer, SceneSerializer, UnitSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class ServiceUnavailable(APIException):
@@ -85,20 +89,29 @@ class PersonViewSet(viewsets.ViewSet):
     @list_route(methods=['POST'])
     def leave(self, request):
         """Child view when leaving to turn off all lights."""
+        if not RealPerson.is_home():
+            return Response({
+                'message': 'Everyone has already left the house'
+            })
+
         log = []
 
         # save the state that someone is home
         RealPerson.leave()
+        logger.debug(f'real person has left')
 
         # save lights currently turned on
         on_units = Unit.objects.filter(state=True, auto_managed=True)
-        cache.set(PersonViewSet.KEY, [u.slug for u in on_units], None)
+        on_units_slugs = [u.slug for u in on_units]
+        cache.set(PersonViewSet.KEY, on_units_slugs, None)
+        logger.debug(f'previously on units: {on_units_slugs}')
 
         # turn off all lights
         for unit in on_units:
             try:
                 unit.send_signal(Unit.OFF_ACTION)
                 log.append(f'Turned {unit} off')
+                logger.info(f'turning {unit} off')
             except (CacheLockException, FirecrackerException):
                 raise ServiceUnavailable
 
@@ -110,6 +123,11 @@ class PersonViewSet(viewsets.ViewSet):
     @list_route(methods=['POST'])
     def arrive(self, request):
         """Child view when leaving to turn on lights that were previously on."""
+        if RealPerson.is_home():
+            return Response({
+                'message': 'Another person has already entered the house'
+            })
+
         log = []
 
         # save the state that someone is home
@@ -117,17 +135,19 @@ class PersonViewSet(viewsets.ViewSet):
 
         # get the current time and any units that were on when someone left
         previously_on_units = cache.get(PersonViewSet.KEY, [])
+        logger.debug(f'previously on units: {previously_on_units}')
 
         # turn on units that were on when last left
         for slug in previously_on_units:
             try:
                 unit = Unit.objects.get(slug=slug)
             except Unit.DoesNotExist:
-                pass
+                logger.warn(f'{slug} does not exist, skipping')
             else:
                 try:
                     unit.send_signal(Unit.ON_ACTION)
                     log.append(f'Turned {unit} back on')
+                    logger.info(f'turning {unit} back on')
                 except (CacheLockException, FirecrackerException):
                     raise ServiceUnavailable
 
@@ -138,6 +158,7 @@ class PersonViewSet(viewsets.ViewSet):
                 try:
                     unit.send_signal(Unit.ON_ACTION)
                     log.append(f'Turned {unit} on due to a scheduled event')
+                    logger.info('turned {unit} on due to an intended state')
                 except (CacheLockException, FirecrackerException):
                     raise ServiceUnavailable
 

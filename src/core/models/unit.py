@@ -1,5 +1,6 @@
 """Models related to Units."""
 from datetime import datetime
+import logging
 
 from django.conf import settings
 from django.db import models
@@ -14,6 +15,8 @@ from .schedule import Schedule
 from .solar_schedule import SolarSchedule
 
 __all__ = ('InvalidSignalError', 'Unit',)
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidSignalError(Exception):
@@ -112,24 +115,30 @@ class Unit(models.Model):
         :raises: InvalidSignalError
         :returns: the status if the command was sent
         """
+        logger.debug(f'sending signal "{command}" {multiplier} time(s) to unit "{self}"')
         status = True
 
         # no command given, resend the current state
         if command is None:
             command = Unit.ON_ACTION if self.state else Unit.OFF_ACTION
+            logger.debug(f'using default action "{command}"')
 
         # check if the command was valid
         command = command.lower()
         if command not in Unit.ACTION_COMMANDS:
-            raise InvalidSignalError(f'the command {command} does not exist')
+            logger.error(f'invalid command: "{command}"')
+            raise InvalidSignalError(f'the command "{command}" does not exist')
 
         # only allow bright or dim actions if the unit is dimmable
         if (command == Unit.BRIGHT_ACTION or command == Unit.DIM_ACTION) and not self.dimmable:
-            raise InvalidSignalError(f'the {command} command cannot be sent to this device')
+            logger.error(f'"{self}" does not support the command: {command}')
+            raise InvalidSignalError(f'the "{command}" command cannot be sent to this device')
 
         # grab the lock and send the signal
         with cache_lock('x10_interface', attempts, sleep_time):
             for i in range(0, multiplier):
+                logger.debug((f'sending signal "{command}" on "{settings.X10_SERIAL}" '
+                              f'to unit "{self.number}" in house "{self.house}"'))
                 send_command(settings.X10_SERIAL, self.house, self.number, command)
 
         # send the command action out to the websocket
@@ -138,6 +147,7 @@ class Unit(models.Model):
         # save the state matching the on or off action
         if command in (Unit.ON_ACTION, Unit.OFF_ACTION):
             self.state = command == Unit.ON_ACTION
+            logger.debug(f'saving new state of "{self}": {self.state}')
             self.save()
         return status
 
@@ -150,6 +160,7 @@ class Unit(models.Model):
         # get today's date only (remove time info)
         current_time = current_time.astimezone(pytz.utc)
         today = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+        logger.debug(f'generating daily events for "{self}" at "{current_time}"')
 
         # get a list of all event times for today
         on_dts = [ev.next_time(today) for ev in self.on_schedules.all()]
@@ -165,7 +176,9 @@ class Unit(models.Model):
             events.append({'time': dt, 'state': False})
 
         # sort the events by their time
-        return sorted(events, key=lambda k: k['time'])
+        events = sorted(events, key=lambda k: k['time'])
+        logger.debug(f'scheduled events for "{self}" for today: {events}')
+        return events
 
     def intended_state(self, current_time: datetime = now()):
         """Returns the state the unit should be set to for the current time.
@@ -179,9 +192,13 @@ class Unit(models.Model):
 
         state = False
         for ev in schedule:
+            logger.debug(f'checking {ev}')
+
             # the event time occurs in the future
             # break out of the loop, leaving the last known state
             if ev['time'] >= current_time:
+                logger.debug((f'"{ev}" is past "{current_time}", using state for '
+                              f'unit "{self}": {state}'))
                 break
 
             # set the state to represent the action

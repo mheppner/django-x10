@@ -1,7 +1,10 @@
 """Centralized actions for sending to websockets."""
+import logging
+
 from channels import Group
 from rest_framework.renderers import JSONRenderer
 
+logger = logging.getLogger(__name__)
 
 STATUS_GROUP = 'status'
 
@@ -16,6 +19,7 @@ def send_command_status(unit, command, channel=None):
     if channel is None:
         channel = Group(STATUS_GROUP)
 
+    logger.debug(f'sending command {command} on {unit} to {channel}')
     channel.send({
         'text': JSONRenderer().render({
             'namespace': 'units',
@@ -40,6 +44,7 @@ def send_unit_status(instance, created=False, channel=None):
     from core.serializers import UnitSerializer  # noqa
     serializer = UnitSerializer(instance)
 
+    logger.debug(f'sending unit {instance} to {channel}')
     channel.send({
         'text': JSONRenderer().render({
             'namespace': 'units',
@@ -68,6 +73,7 @@ def send_units_status(qs=None, channel=None):
 
     serializer = UnitSerializer(qs, many=True)
 
+    logger.debug(f'sending all {len(qs)} units to {channel}')
     channel.send({
         'text': JSONRenderer().render({
             'namespace': 'units',
@@ -90,6 +96,7 @@ def send_scene_status(instance, created=False, channel=None):
     from core.serializers import SceneSerializer  # noqa
     serializer = SceneSerializer(instance)
 
+    logger.debug(f'sending scene {instance} state to {channel}')
     channel.send({
         'text': JSONRenderer().render({
             'namespace': 'scenes',
@@ -117,6 +124,7 @@ def send_scenes_status(qs=None, channel=None):
 
     serializer = SceneSerializer(qs, many=True)
 
+    logger.debug(f'sending all {len(qs)} scenes to {channel}')
     channel.send({
         'text': JSONRenderer().render({
             'namespace': 'scenes',
@@ -139,6 +147,7 @@ def send_real_person_status(status=None, channel=None):
         from core.models import RealPerson  # noqa
         status = RealPerson.is_home()
 
+    logger.debug(f'sending state of real person to {channel}: {status}')
     channel.send({
         'text': JSONRenderer().render({
             'namespace': 'person',

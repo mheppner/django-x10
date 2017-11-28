@@ -49,7 +49,7 @@ class Command(BaseCommand):
 
         while True:
             current_time = now()
-            logger.info(f'starting check at {current_time.astimezone(tz)}')
+            logger.debug(f'starting check at {current_time.astimezone(tz)}')
 
             # get only schedules that have either on or off units set
             schedules = Schedule.objects.exclude(off_unit_set=None, on_unit_set=None)
@@ -65,7 +65,7 @@ class Command(BaseCommand):
                 if next_run > event_time:
                     logger.info(f'running ON tasks')
                     for unit in schedule.on_unit_set.all():
-                        logger.debug(f'turning {unit} on')
+                        logger.info(f'turning {unit} on')
                         try:
                             unit.send_signal(Unit.ON_ACTION)
                         except (CacheLockException, FirecrackerException) as e:
@@ -73,7 +73,7 @@ class Command(BaseCommand):
 
                     logger.info(f'running OFF tasks')
                     for unit in schedule.off_unit_set.all():
-                        logger.debug(f'turning {unit} off')
+                        logger.info(f'turning {unit} off')
                         try:
                             unit.send_signal(Unit.OFF_ACTION)
                         except (CacheLockException, FirecrackerException) as e:
@@ -91,5 +91,5 @@ class Command(BaseCommand):
                 wait_sec += interval
 
             # sleep until the next loop
-            logger.info(f'sleeping {wait_sec} seconds...')
+            logger.debug(f'sleeping {wait_sec} seconds...')
             time.sleep(wait_sec)
