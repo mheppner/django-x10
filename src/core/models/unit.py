@@ -14,7 +14,8 @@ from x10.lock import cache_lock
 from .schedule import Schedule
 from .solar_schedule import SolarSchedule
 
-__all__ = ('InvalidSignalError', 'Unit',)
+__all__ = ('InvalidSignalError', 'Unit', 'OnScheduleConstraint', 'OffScheduleConstraint',
+           'OnSolarScheduleConstraint', 'OffSolarScheduleConstraint')
 
 logger = logging.getLogger(__name__)
 
@@ -77,21 +78,25 @@ class Unit(models.Model):
         help_text='If this unit can be controlled by other tasks.')
     on_schedules = models.ManyToManyField(
         Schedule,
+        through='OnScheduleConstraint',
         blank=True,
         related_name='on_unit_set',
         help_text='Automatic schedules to turn on the unit.')
     off_schedules = models.ManyToManyField(
         Schedule,
+        through='OffScheduleConstraint',
         blank=True,
         related_name='off_unit_set',
         help_text='Automatic schedules to turn off the unit.')
     on_solar_schedules = models.ManyToManyField(
         SolarSchedule,
+        through='OnSolarScheduleConstraint',
         blank=True,
         related_name='on_unit_set',
         help_text='Automatic solar schedules to turn on the unit.')
     off_solar_schedules = models.ManyToManyField(
         SolarSchedule,
+        through='OffSolarScheduleConstraint',
         blank=True,
         related_name='off_unit_set',
         help_text='Automatic solar schedules to turn off the unit.')
@@ -151,7 +156,7 @@ class Unit(models.Model):
             self.save()
         return status
 
-    def daily_events(self, current_time: datetime = now()):
+    def daily_events(self, current_time: datetime = now(), only_if_home: bool = False):
         """Get times for all events in the current day.
 
         :param current_time: the current time to check against
@@ -162,11 +167,19 @@ class Unit(models.Model):
         today = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
         logger.debug(f'generating daily events for "{self}" at "{current_time}"')
 
+        qs_filter = {}
+        if only_if_home:
+            qs_filter['if_home'] = True
+
         # get a list of all event times for today
-        on_dts = [ev.next_time(today) for ev in self.on_schedules.all()]
-        on_dts += [ev.next_time(today) for ev in self.on_solar_schedules.all()]
-        off_dts = [ev.next_time(today) for ev in self.off_schedules.all()]
-        off_dts += [ev.next_time(today) for ev in self.off_solar_schedules.all()]
+        on_dts = [ev.schedule.next_time(today) for ev in
+                  self.onscheduleconstraint_set.filter(**qs_filter)]
+        on_dts += [ev.solarschedule.next_time(today) for ev in
+                   self.onsolarscheduleconstraint_set.filter(**qs_filter)]
+        off_dts = [ev.schedule.next_time(today) for ev in
+                   self.offscheduleconstraint_set.filter(**qs_filter)]
+        off_dts += [ev.solarschedule.next_time(today) for ev in
+                    self.offsolarscheduleconstraint_set.filter(**qs_filter)]
 
         # create a single list of events for the entire day
         events = []
@@ -180,7 +193,7 @@ class Unit(models.Model):
         logger.debug(f'scheduled events for "{self}" for today: {events}')
         return events
 
-    def intended_state(self, current_time: datetime = now()):
+    def intended_state(self, current_time: datetime = now(), only_if_home: bool = False):
         """Return the state the unit should be set to for the current time.
 
         :param current_time: the current time to check against
@@ -188,7 +201,7 @@ class Unit(models.Model):
         """
         # get schedule of events for today
         # these are ordered by event time
-        schedule = self.daily_events(current_time)
+        schedule = self.daily_events(current_time, only_if_home)
 
         state = False
         for ev in schedule:
@@ -212,3 +225,81 @@ class Unit(models.Model):
 
 
 post_save.connect(Unit.post_save, sender=Unit)
+
+
+class ScheduleConstraint(models.Model):
+    """Any constraints applied to relationships between a Unit and a Schedule."""
+
+    schedule = models.ForeignKey(
+        Schedule,
+        help_text='The schedule object for this relationship')
+    unit = models.ForeignKey(
+        Unit,
+        help_text='The unit object for this relationship')
+    if_home = models.BooleanField(
+        default=False,
+        help_text='Only use this schedule if a real person is home')
+
+    class Meta:
+        """Model options."""
+
+        abstract = True
+        unique_together = (('schedule', 'unit'),)
+
+    def __str__(self):
+        """Use unit and schedule name."""
+        base = f'{self.unit} at {self.schedule}'
+        if self.if_home:
+            base += ' (home)'
+        return base
+
+
+class OnScheduleConstraint(ScheduleConstraint):
+    """Constraint between a Unit and on-Schedules."""
+
+    pass
+
+
+class OffScheduleConstraint(ScheduleConstraint):
+    """Constraint between a Unit and off-Schedules."""
+
+    pass
+
+
+class SolarScheduleConstraint(models.Model):
+    """Any constraints applied to relationships between a Unit and a SolarSchedule."""
+
+    solarschedule = models.ForeignKey(
+        SolarSchedule,
+        help_text='The solar schedule object for this relationship')
+    unit = models.ForeignKey(
+        Unit,
+        help_text='The unit object for this relationship')
+    if_home = models.BooleanField(
+        default=False,
+        help_text='Only use this schedule if a real person is home')
+
+    class Meta:
+        """Model options."""
+
+        abstract = True
+        unique_together = (('solarschedule', 'unit'),)
+
+    def __str__(self):
+        """Use unit and schedule name."""
+        base = f'{self.unit} at {self.solarschedule}'
+        if self.if_home:
+            base += ' (home)'
+        return base
+
+
+class OnSolarScheduleConstraint(SolarScheduleConstraint):
+    """Constraint between a Unit and on-SolarSchedules."""
+
+    pass
+
+
+class OffSolarScheduleConstraint(SolarScheduleConstraint):
+    """Constraint between a Unit and off-SolarSchedules."""
+
+    pass

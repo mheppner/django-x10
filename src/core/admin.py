@@ -4,7 +4,37 @@ from django.contrib import admin, messages
 
 from x10.interface import FirecrackerException
 from x10.lock import CacheLockException
-from . models import PersistentToken, Scene, Schedule, SolarSchedule, Unit
+from . models import (OffScheduleConstraint, OffSolarScheduleConstraint,
+                      OnScheduleConstraint, OnSolarScheduleConstraint,
+                      PersistentToken, Scene, Schedule, SolarSchedule, Unit)
+
+
+class OnScheduleConstraintInline(admin.TabularInline):
+    """Inline form for OnSchedule models."""
+
+    model = OnScheduleConstraint
+    extra = 0
+
+
+class OffScheduleConstraintInline(admin.TabularInline):
+    """Inline form for OffSchedule models."""
+
+    model = OffScheduleConstraint
+    extra = 0
+
+
+class OnSolarScheduleConstraintInline(admin.TabularInline):
+    """Inline form for OnSolarSchedule models."""
+
+    model = OnSolarScheduleConstraint
+    extra = 0
+
+
+class OffSolarScheduleConstraintInline(admin.TabularInline):
+    """Inline form for OffSolarSchedule models."""
+
+    model = OffSolarScheduleConstraint
+    extra = 0
 
 
 @admin.register(PersistentToken)
@@ -82,11 +112,9 @@ class UnitAdmin(SortableAdminMixin, admin.ModelAdmin):
                        ('house', 'number',),
                        ('dimmable', 'auto_managed'))
         }),
-        ('Schedule', {
-            'fields': ('on_schedules', 'off_schedules',
-                       'on_solar_schedules', 'off_solar_schedules')
-        })
     )
+    inlines = (OnScheduleConstraintInline, OffScheduleConstraintInline,
+               OnSolarScheduleConstraintInline, OffSolarScheduleConstraintInline)
     list_display = ('slug', 'name', 'state', 'house', 'number', 'dimmable', 'auto_managed')
     list_editable = ('name', 'house', 'number', 'dimmable', 'auto_managed')
     list_filter = ('house', 'dimmable',)

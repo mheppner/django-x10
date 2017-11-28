@@ -169,7 +169,7 @@ class PersonViewSet(viewsets.ViewSet):
         # turn on units that fall within their scheduled on times
         managed_units = Unit.objects.filter(state=False, auto_managed=True)
         for unit in managed_units.all():
-            if unit.intended_state():
+            if unit.intended_state(only_if_home=True):
                 try:
                     unit.send_signal(Unit.ON_ACTION)
                     log.append(f'Turned {unit} on due to a scheduled event')

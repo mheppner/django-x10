@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand
 from django.utils.timezone import now
 import pytz
 
-from core.models import Schedule, Unit
+from core.models import OffScheduleConstraint, OnScheduleConstraint, RealPerson, Unit
 from x10.interface import FirecrackerException
 from x10.lock import CacheLockException
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    """Command to run solar schedules."""
+    """Command to run crontab schedules."""
 
     help = 'Runs the crontab schedule events for units.'
 
@@ -42,42 +42,26 @@ class Command(BaseCommand):
 
         # get the interval and create a time delta
         interval = options.get('interval')
-        delta = datetime.timedelta(seconds=interval)
+        self.delta = datetime.timedelta(seconds=interval)
 
         # used only for logging times
-        tz = pytz.timezone(settings.TIME_ZONE)
+        self.tz = pytz.timezone(settings.TIME_ZONE)
 
         while True:
             current_time = now()
-            logger.debug(f'starting check at {current_time.astimezone(tz)}')
+            logger.debug(f'starting check at {current_time.astimezone(self.tz)}')
 
-            # get only schedules that have either on or off units set
-            schedules = Schedule.objects.exclude(off_unit_set=None, on_unit_set=None)
+            # if a person is not home, exclude the schedules that require someone to be home
+            qs_filter = {}
+            if not RealPerson.is_home():
+                qs_filter['if_home'] = True
 
-            for schedule in schedules:
-                event_time = schedule.next_time(current_time)
-                logger.debug(f'{schedule} next event time is at {event_time.astimezone(tz)}')
+            # get all of the on schedules
+            on_constraints = OnScheduleConstraint.objects.exclude(**qs_filter)
+            off_constraints = OffScheduleConstraint.objects.exclude(**qs_filter)
 
-                # get the next time the loop will run
-                next_run = current_time + delta
-                logger.debug(f'next run is at {next_run.astimezone(tz)}')
-
-                if next_run > event_time:
-                    logger.info(f'running ON tasks')
-                    for unit in schedule.on_unit_set.all():
-                        logger.info(f'turning {unit} on')
-                        try:
-                            unit.send_signal(Unit.ON_ACTION)
-                        except (CacheLockException, FirecrackerException) as e:
-                            logger.exception(e)
-
-                    logger.info(f'running OFF tasks')
-                    for unit in schedule.off_unit_set.all():
-                        logger.info(f'turning {unit} off')
-                        try:
-                            unit.send_signal(Unit.OFF_ACTION)
-                        except (CacheLockException, FirecrackerException) as e:
-                            logger.exception(e)
+            self.run_actions(on_constraints, current_time, Unit.ON_ACTION)
+            self.run_actions(off_constraints, current_time, Unit.OFF_ACTION)
 
             # get the duration of the loop
             finish_time = now()
@@ -93,3 +77,27 @@ class Command(BaseCommand):
             # sleep until the next loop
             logger.debug(f'sleeping {wait_sec} seconds...')
             time.sleep(wait_sec)
+
+    def run_actions(self, constraints, current_time: datetime, action: str):
+        """Run actions for a set of schedule constraints.
+
+        :param constraints: the queryset of schedule constraints to loop through
+        :param current_time: the current time to calculate the next event time
+        :param action: the command to be sent
+        """
+        for c in constraints:
+            # get the next event time for the schedule
+            event_time = c.schedule.next_time(current_time)
+            logger.debug(f'{c.schedule} next event time is at {event_time.astimezone(self.tz)}')
+
+            # get the next time the loop will run
+            next_run = current_time + self.delta
+            logger.debug(f'next run is at {next_run.astimezone(self.tz)}')
+
+            if next_run > event_time:
+                # the next time the loop will run exceeds the next scheduled time, run now
+                logger.info(f'turning {c.unit} {action}')
+                try:
+                    c.unit.send_signal(action)
+                except (CacheLockException, FirecrackerException) as e:
+                    logger.exception(e)
