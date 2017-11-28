@@ -8,7 +8,7 @@ from django.db.models.signals import post_save
 from django.utils.timezone import now
 import pytz
 
-from core.actions import send_unit_status, send_command_status
+from core.actions import send_command_status, send_unit_status
 from x10.interface import HOUSE_LABELS, send_command, UNIT_LABELS
 from x10.lock import cache_lock
 from .schedule import Schedule
@@ -181,7 +181,7 @@ class Unit(models.Model):
         return events
 
     def intended_state(self, current_time: datetime = now()):
-        """Returns the state the unit should be set to for the current time.
+        """Return the state the unit should be set to for the current time.
 
         :param current_time: the current time to check against
         :returns: the desired state based on the schedules.

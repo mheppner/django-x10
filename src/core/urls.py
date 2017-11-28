@@ -10,6 +10,8 @@ router = DefaultRouter()
 router.register(r'person', viewsets.PersonViewSet, base_name='person')
 router.register(r'units', viewsets.UnitViewSet)
 router.register(r'scenes', viewsets.SceneViewSet)
+router.register(r'schedules', viewsets.ScheduleViewSet)
+router.register(r'solar-schedules', viewsets.SolarScheduleViewSet)
 
 
 urlpatterns = [

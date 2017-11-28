@@ -5,7 +5,7 @@ from channels import Group
 from channels.auth import channel_session_user, channel_session_user_from_http
 from rest_framework.renderers import JSONRenderer
 
-from .actions import STATUS_GROUP, send_units_status, send_real_person_status, send_scenes_status
+from .actions import send_real_person_status, send_scenes_status, send_units_status, STATUS_GROUP
 
 
 @channel_session_user_from_http

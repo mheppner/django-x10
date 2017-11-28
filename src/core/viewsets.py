@@ -10,8 +10,9 @@ from rest_framework.response import Response
 
 from x10.interface import FirecrackerException
 from x10.lock import CacheLockException
-from .models import InvalidSignalError, RealPerson, Scene, Unit
-from .serializers import CommandSerializer, SceneSerializer, UnitSerializer
+from .models import InvalidSignalError, RealPerson, Scene, Schedule, SolarSchedule, Unit
+from .serializers import (CommandSerializer, SceneSerializer, ScheduleSerializer,
+                          SolarScheduleSerializer, UnitSerializer)
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,20 @@ class SceneViewSet(viewsets.ModelViewSet):
             raise ParseError(detail=str(e))
 
         return Response({'status': status})
+
+
+class ScheduleViewSet(viewsets.ModelViewSet):
+    """Viewset for interacting with Schedule models."""
+
+    queryset = Schedule.objects.all()
+    serializer_class = ScheduleSerializer
+
+
+class SolarScheduleViewSet(viewsets.ModelViewSet):
+    """Viewset for interacting with SolarSchedule models."""
+
+    queryset = SolarSchedule.objects.all()
+    serializer_class = SolarScheduleSerializer
 
 
 class PersonViewSet(viewsets.ViewSet):
