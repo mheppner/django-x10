@@ -310,7 +310,7 @@ LOGGING = {
     },
     'handlers': {
         'console': {
-            'filters': ['require_debug_true'],
+            'filters': [],
             'class': 'logging.StreamHandler',
             'formatter': 'simple'
         },
@@ -332,7 +332,7 @@ LOGGING = {
         },
         'core': {
             'handlers': ['console'],
-            'level': env.str('CORE_LOG_LEVEL', default='WARN'),
+            'level': 'WARN',
             'propagate': True
         },
     }
