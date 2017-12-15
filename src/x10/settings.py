@@ -1,6 +1,7 @@
 """Main project settings."""
 from __future__ import absolute_import
 
+from django.core.exceptions import ImproperlyConfigured
 import environ
 
 try:
@@ -284,8 +285,12 @@ CORS_ALLOW_CREDENTIALS = env.bool('CORS_ALLOW_CREDENTIALS', default=True)
 App settings
 '''
 X10_SERIAL = env.str('X10_SERIAL', default='/dev/cu.usbserial')
-X10_LATITUDE = env.float('X10_LATITUDE', default=38.889857)
-X10_LONGITUDE = env.float('X10_LONGITUDE', default=-77.009954)
+try:
+    # https://github.com/joke2k/django-environ/issues/160
+    X10_LATITUDE = float(env.str('X10_LATITUDE', default=38.889857))
+    X10_LONGITUDE = float(env.str('X10_LONGITUDE', default=-77.009954))
+except ValueError:
+    raise ImproperlyConfigured('X10_LATITUDE and X10_LONGITUDE must be floats')
 
 
 '''
