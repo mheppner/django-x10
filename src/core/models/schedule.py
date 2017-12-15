@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 
 from crontab import CronTab
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.timezone import now
@@ -45,6 +46,9 @@ class Schedule(models.Model):
     def next_time(self, current_time: datetime = now()):
         """Get the next time of the event based on the current time.
 
+        The crontab is assumed to be in local time, so the timezone will be converted back
+        to UTC.
+
         :param current_time: timezone-aware starting time
         :returns: next event time, in UTC
         """
@@ -56,4 +60,10 @@ class Schedule(models.Model):
 
         # calculate the next delta time to the next event
         delta = timedelta(seconds=cal.next(current_time))
-        return current_time + delta
+        next_time = current_time + delta
+
+        # get the local timezone
+        local_tz = pytz.timezone(settings.TIME_ZONE)
+
+        # assume the crontab is in local time, then convert to utc
+        return next_time.replace(tzinfo=local_tz).astimezone(pytz.utc)
