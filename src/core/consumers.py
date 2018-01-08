@@ -18,7 +18,12 @@ def ws_connect(message):
         send_scenes_status(channel=message.reply_channel)
         Group(STATUS_GROUP).add(message.reply_channel)
     else:
-        message.reply_channel.send({'accept': False})
+        message.reply_channel.send({
+            'text': JSONRenderer().render({
+                'error': 403
+            }).decode('utf-8')
+        })
+        message.reply_channel.send({'close': True})
 
 
 @channel_session_user
